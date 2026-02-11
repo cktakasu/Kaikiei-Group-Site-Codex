@@ -495,9 +495,76 @@ main {
   color: var(--text-sub);
 }
 
+.section-updated {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 500;
+  color: var(--text-sub);
+}
+
+.reference-block,
+.country-block {
+  margin-top: 16px;
+}
+
+.reference-block h3,
+.country-block h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.reference-block h4 {
+  margin: 14px 0 0;
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.country-procedure {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-dark);
+}
+
+.country-procedure strong {
+  font-weight: 600;
+}
+
 .table-wrap {
   overflow: auto;
   margin-top: 14px;
+}
+
+.legend-inline {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+}
+
+.legend-inline-item {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-dark);
+}
+
+.legend-inline-item strong {
+  font-family: var(--font-display);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 table {
@@ -528,6 +595,40 @@ td:first-child {
   white-space: nowrap;
   word-break: keep-all;
   min-width: 7.5rem;
+}
+
+.definition-table th:first-child,
+.definition-table td:first-child {
+  min-width: 5rem;
+}
+
+.requirements-table th:nth-child(2),
+.requirements-table td:nth-child(2) {
+  min-width: 7rem;
+  text-align: center;
+}
+
+.summary-table th:not(:first-child),
+.summary-table td:not(:first-child),
+.quick-table th:not(:first-child),
+.quick-table td:not(:first-child) {
+  text-align: center;
+}
+
+.notes-list {
+  margin: 12px 0 0;
+  padding-left: 1.4rem;
+}
+
+.notes-list li {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-dark);
+}
+
+.product-category-notes {
+  margin-top: 10px;
 }
 
 .footer {
@@ -653,6 +754,11 @@ td:first-child {
   .card-grid {
     grid-template-columns: 1fr;
     padding: 0 20px;
+  }
+
+  .legend-inline {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .card {
