@@ -22,10 +22,21 @@
 
   --border: #d2d2d7;
   --footer-link: #424245;
+  --editorial-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
   box-sizing: border-box;
+}
+
+::selection {
+  background: #6f6250;
+  color: #f7f3ea;
+}
+
+::-moz-selection {
+  background: #6f6250;
+  color: #f7f3ea;
 }
 
 html,
@@ -113,13 +124,21 @@ body {
 
 .hero {
   width: 100%;
-  min-height: 580px;
-  padding: 56px 20px 0;
+  min-height: auto;
+  padding: 42px 16px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   overflow: hidden;
+}
+
+#top.hero {
+  min-height: auto;
+}
+
+#map-section.hero {
+  padding-top: 36px;
 }
 
 .hero--light {
@@ -141,8 +160,8 @@ body {
 }
 
 .hero h1 {
-  margin: 8px 0 0;
-  font-size: 56px;
+  margin: 6px 0 0;
+  font-size: 36px;
   line-height: 1.07;
   font-weight: 600;
   letter-spacing: -0.005em;
@@ -150,14 +169,14 @@ body {
 
 .hero h2 {
   margin: 0;
-  font-size: 40px;
+  font-size: 32px;
   line-height: 1.1;
   font-weight: 600;
 }
 
 .hero-sub {
-  margin: 6px 0 0;
-  font-size: 28px;
+  margin: 4px 0 0;
+  font-size: 16px;
   line-height: 1.21;
   font-weight: 400;
   letter-spacing: 0.004em;
@@ -166,14 +185,14 @@ body {
 }
 
 .hero-cta {
-  margin-top: 18px;
+  margin-top: 10px;
   display: flex;
-  gap: 24px;
+  gap: 16px;
   justify-content: center;
 }
 
 .hero-cta a {
-  font-size: 21px;
+  font-size: 15px;
   line-height: 1.25;
   font-weight: 400;
   letter-spacing: 0.011em;
@@ -197,10 +216,11 @@ body {
 
 .map-stage {
   width: min(1024px, calc(100vw - 12px));
-  margin-top: 28px;
-  height: 580px;
+  margin-top: 12px;
+  height: 520px;
   background: var(--bg-gray);
   overflow: hidden;
+  position: relative;
 }
 
 #asean-map-svg {
@@ -234,12 +254,13 @@ body {
 
 .country-shape.active {
   fill: var(--link);
-  stroke: var(--link-hover);
+  stroke: var(--text-sub);
 }
 
+.country-shape:focus,
 .country-shape:focus-visible {
   outline: none;
-  stroke: var(--link-hover);
+  stroke: var(--text-sub);
 }
 
 .map-error-text {
@@ -248,13 +269,117 @@ body {
   font-weight: 400;
 }
 
+.editorial-label {
+  position: absolute;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  color: #0f1d31;
+  pointer-events: none;
+  text-align: left;
+  min-width: 170px;
+  max-width: 72%;
+}
+
+.editorial-label .label-headline {
+  margin: 0;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-weight: 700;
+  font-size: clamp(2.25rem, 3.8vw, 3.3rem);
+  line-height: 1.02;
+  letter-spacing: clamp(0.14em, var(--label-tracking, 0.18em), 0.22em);
+  text-transform: uppercase;
+  color: #111111;
+  -webkit-text-stroke: 2.4px rgba(255, 255, 255, 0.995);
+  text-shadow:
+    0 0 2px rgba(255, 255, 255, 0.995),
+    0 0 9px rgba(255, 255, 255, 0.98),
+    0 0 16px rgba(255, 255, 255, 0.94),
+    0 0 28px rgba(255, 255, 255, 0.84),
+    0 0 44px rgba(255, 255, 255, 0.68);
+  paint-order: stroke fill;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 600ms var(--editorial-ease), transform 600ms var(--editorial-ease);
+}
+
+.editorial-label .label-rule {
+  display: block;
+  width: var(--rule-width, 60px);
+  height: 1.4px;
+  margin-top: 8px;
+  margin-left: var(--rule-offset, -8px);
+  background: #243957;
+  transform-origin: left center;
+  transform: scaleX(0);
+  opacity: 0;
+  transition: transform 400ms var(--editorial-ease), opacity 400ms var(--editorial-ease);
+}
+
+.editorial-label .label-official {
+  margin: 8px 0 0;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(1.28rem, 2.2vw, 1.52rem);
+  line-height: 1.12;
+  letter-spacing: 0.025em;
+  color: #111111;
+  -webkit-text-stroke: 2.2px rgba(255, 255, 255, 0.998);
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 0.998),
+    0 0 12px rgba(255, 255, 255, 0.995),
+    0 0 24px rgba(255, 255, 255, 0.95),
+    0 0 42px rgba(255, 255, 255, 0.82),
+    0 0 60px rgba(255, 255, 255, 0.68);
+  paint-order: stroke fill;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 300ms var(--editorial-ease), transform 300ms var(--editorial-ease);
+}
+
+.editorial-label.phase-entering .label-headline,
+.editorial-label.phase-entering .label-rule,
+.editorial-label.phase-entering .label-official {
+  transition-delay: 0ms;
+}
+
+.editorial-label.phase-visible .label-headline {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0ms;
+}
+
+.editorial-label.phase-visible .label-rule {
+  opacity: 1;
+  transform: scaleX(1);
+  transition-delay: 200ms;
+}
+
+.editorial-label.phase-visible .label-official {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 600ms;
+}
+
+.editorial-label.phase-exiting .label-headline {
+  transition-delay: 240ms;
+}
+
+.editorial-label.phase-exiting .label-rule {
+  transition-delay: 120ms;
+}
+
+.editorial-label.phase-exiting .label-official {
+  transition-delay: 0ms;
+}
+
 main {
-  padding: 12px 0 0;
+  padding: 6px 0 0;
 }
 
 .card-grid {
   max-width: 1024px;
-  margin: 0 auto;
+  margin: 6px auto 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
@@ -262,13 +387,17 @@ main {
   background: var(--bg-white);
 }
 
+.card-grid--single {
+  grid-template-columns: 1fr;
+}
+
 .card {
-  min-height: 320px;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 42px 24px 24px;
+  padding: 14px 16px 10px;
   overflow: hidden;
   border: none;
 }
@@ -283,7 +412,7 @@ main {
 
 .card h3 {
   margin: 0;
-  font-size: 28px;
+  font-size: 20px;
   line-height: 1.1;
   font-weight: 600;
   letter-spacing: 0.004em;
@@ -291,7 +420,7 @@ main {
 
 .card p {
   margin: 4px 0 0;
-  font-size: 21px;
+  font-size: 14px;
   line-height: 1.25;
   font-weight: 400;
   letter-spacing: 0.011em;
@@ -300,13 +429,13 @@ main {
 
 .card input,
 .card select {
-  margin-top: 18px;
+  margin-top: 10px;
   width: min(520px, 100%);
-  padding: 12px 14px;
+  padding: 9px 12px;
   border: 1px solid var(--border);
   background: #fff;
   color: var(--text-dark);
-  font-size: 19px;
+  font-size: 14px;
   line-height: 1.25;
   font-weight: 400;
   letter-spacing: 0.011em;
@@ -315,22 +444,22 @@ main {
 .content-block {
   width: 100%;
   max-width: 1024px;
-  margin: 12px auto 0;
-  padding: 42px 12px;
+  margin: 8px auto 0;
+  padding: 20px 10px;
   background: var(--bg-white);
 }
 
 .content-block h2 {
   margin: 0;
   text-align: center;
-  font-size: 40px;
+  font-size: 30px;
   line-height: 1.1;
   font-weight: 600;
 }
 
 .table-wrap {
   overflow: auto;
-  margin-top: 18px;
+  margin-top: 10px;
 }
 
 table {
@@ -343,9 +472,9 @@ table {
 th,
 td {
   border: 1px solid var(--border);
-  padding: 0.65rem;
+  padding: 0.5rem;
   vertical-align: top;
-  font-size: 17px;
+  font-size: 14px;
   line-height: 1.45;
   font-weight: 400;
 }
@@ -365,8 +494,8 @@ td:first-child {
 
 .footer {
   background: var(--bg-gray);
-  padding: 12px 0 20px;
-  margin-top: 16px;
+  padding: 8px 0 12px;
+  margin-top: 8px;
 }
 
 .footer-inner {
@@ -380,7 +509,7 @@ td:first-child {
 
 .footer-note {
   margin: 0;
-  padding: 17px 0;
+  padding: 10px 0;
 }
 
 .footer-line {
@@ -415,22 +544,22 @@ td:first-child {
 
 @media (max-width: 1068px) {
   .hero h1 {
-    font-size: 48px;
+    font-size: 32px;
   }
 
   .hero-sub {
-    font-size: 24px;
+    font-size: 15px;
   }
 
   .card h3 {
-    font-size: 24px;
+    font-size: 18px;
   }
 
   .card p,
   .card input,
   .card select,
   .hero-cta a {
-    font-size: 19px;
+    font-size: 14px;
   }
 }
 
@@ -440,20 +569,21 @@ td:first-child {
   }
 
   .hero {
-    min-height: 500px;
-    padding-top: 50px;
+    min-height: auto;
+    padding-top: 36px;
+    padding-bottom: 12px;
   }
 
   .hero h1 {
-    font-size: 40px;
+    font-size: 28px;
   }
 
   .hero h2 {
-    font-size: 32px;
+    font-size: 26px;
   }
 
   .hero-sub {
-    font-size: 21px;
+    font-size: 14px;
   }
 
   .hero-cta {
@@ -461,12 +591,26 @@ td:first-child {
   }
 
   .hero-cta a {
-    font-size: 19px;
+    font-size: 14px;
   }
 
   .map-stage {
     width: 100%;
-    height: 500px;
+    height: 420px;
+  }
+
+  .editorial-label {
+    min-width: 140px;
+    max-width: 78%;
+  }
+
+  .editorial-label .label-headline {
+    font-size: clamp(1.7rem, 4.8vw, 2.2rem);
+  }
+
+  .editorial-label .label-official {
+    font-size: clamp(1.12rem, 3.5vw, 1.28rem);
+    -webkit-text-stroke: 1.9px rgba(255, 255, 255, 0.996);
   }
 
   .card-grid {
@@ -475,10 +619,10 @@ td:first-child {
   }
 
   .card {
-    min-height: 500px;
+    min-height: 0;
   }
 
   .content-block {
-    padding: 34px 20px;
+    padding: 18px 16px;
   }
 }

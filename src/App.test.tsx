@@ -122,11 +122,21 @@ describe("ASEAN map zoom", () => {
     await waitFor(() => {
       expect(svg?.getAttribute("viewBox")).not.toBe("0 0 960 620");
     });
+    await waitFor(() => {
+      expect(screen.getByText("MYANMAR")).toBeInTheDocument();
+      expect(screen.getByText("Republic of the Union of Myanmar")).toBeInTheDocument();
+    });
 
     fireEvent.click(myanmarPath);
 
+    await waitFor(
+      () => {
+        expect(svg).toHaveAttribute("viewBox", "0 0 960 620");
+      },
+      { timeout: 2500 }
+    );
     await waitFor(() => {
-      expect(svg).toHaveAttribute("viewBox", "0 0 960 620");
+      expect(screen.queryByText("MYANMAR")).toBeNull();
     });
   });
 });

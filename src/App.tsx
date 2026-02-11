@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type CountryRecord = {
   country: string;
@@ -53,14 +53,32 @@ type MapPath = {
   bounds: Bounds;
 };
 
+type LabelPhase = "entering" | "visible" | "exiting";
+
+type ActiveLabel = {
+  countryName: string;
+  phase: LabelPhase;
+};
+
+type EditorialLabelSpec = {
+  headline: string;
+  official: string;
+  tracking: string;
+  ruleWidth: number;
+  ruleOffset: number;
+  nudgeX: number;
+  nudgeY: number;
+};
+
 const MAP_WIDTH = 960;
 const MAP_HEIGHT = 620;
 const MAP_PADDING = 24;
-const ASEAN_FOCUS_PADDING = 1.08;
+const ASEAN_FOCUS_PADDING = 1.0;
 const COUNTRY_PADDING_FACTOR = 1.22;
 const MIN_COUNTRY_SCALE = 1.0;
 const MAX_COUNTRY_SCALE = 10;
 const ZOOM_ANIMATION_MS = 360;
+const LABEL_EXIT_TOTAL_MS = 860;
 const FULL_VIEWBOX: ViewBox = { x: 0, y: 0, width: MAP_WIDTH, height: MAP_HEIGHT };
 
 const ISO3_TO_JA = new Map<string, string>([
@@ -74,6 +92,129 @@ const ISO3_TO_JA = new Map<string, string>([
   ["SGP", "シンガポール"],
   ["THA", "タイ"],
   ["VNM", "ベトナム"],
+]);
+
+const EDITORIAL_LABELS = new Map<string, EditorialLabelSpec>([
+  [
+    "ブルネイ",
+    {
+      headline: "BRUNEI",
+      official: "Brunei Darussalam",
+      tracking: "0.42em",
+      ruleWidth: 58,
+      ruleOffset: -7,
+      nudgeX: -0.012,
+      nudgeY: -0.015,
+    },
+  ],
+  [
+    "ミャンマー",
+    {
+      headline: "MYANMAR",
+      official: "Republic of the Union of Myanmar",
+      tracking: "0.39em",
+      ruleWidth: 63,
+      ruleOffset: -9,
+      nudgeX: -0.018,
+      nudgeY: -0.01,
+    },
+  ],
+  [
+    "カンボジア",
+    {
+      headline: "CAMBODIA",
+      official: "Kingdom of Cambodia",
+      tracking: "0.41em",
+      ruleWidth: 59,
+      ruleOffset: -6,
+      nudgeX: -0.006,
+      nudgeY: -0.012,
+    },
+  ],
+  [
+    "インドネシア",
+    {
+      headline: "INDONESIA",
+      official: "Republic of Indonesia",
+      tracking: "0.36em",
+      ruleWidth: 62,
+      ruleOffset: -10,
+      nudgeX: 0.013,
+      nudgeY: -0.009,
+    },
+  ],
+  [
+    "ラオス",
+    {
+      headline: "LAOS",
+      official: "Lao People's Democratic Republic",
+      tracking: "0.45em",
+      ruleWidth: 56,
+      ruleOffset: -5,
+      nudgeX: -0.015,
+      nudgeY: -0.014,
+    },
+  ],
+  [
+    "マレーシア",
+    {
+      headline: "MALAYSIA",
+      official: "Malaysia",
+      tracking: "0.4em",
+      ruleWidth: 60,
+      ruleOffset: -8,
+      nudgeX: -0.01,
+      nudgeY: -0.008,
+    },
+  ],
+  [
+    "フィリピン",
+    {
+      headline: "PHILIPPINES",
+      official: "Republic of the Philippines",
+      tracking: "0.34em",
+      ruleWidth: 64,
+      ruleOffset: -11,
+      nudgeX: 0.01,
+      nudgeY: -0.016,
+    },
+  ],
+  [
+    "シンガポール",
+    {
+      headline: "SINGAPORE",
+      official: "Republic of Singapore",
+      tracking: "0.38em",
+      ruleWidth: 57,
+      ruleOffset: -7,
+      nudgeX: -0.008,
+      nudgeY: -0.004,
+    },
+  ],
+  [
+    "タイ",
+    {
+      headline: "THAILAND",
+      official: "Kingdom of Thailand",
+      tracking: "0.43em",
+      ruleWidth: 61,
+      ruleOffset: -9,
+      nudgeX: -0.014,
+      nudgeY: -0.012,
+    },
+  ],
+  [
+    "ベトナム",
+    {
+      headline: "VIET NAM",
+      official: "Socialist Republic of Viet Nam",
+      tracking: "0.44em",
+      ruleWidth: 60,
+      ruleOffset: -8,
+      nudgeX: 0.012,
+      nudgeY: -0.02,
+    },
+  ],
 ]);
 
 function clampLat(latDeg: number): number {
@@ -380,6 +521,7 @@ export default function App(): JSX.Element {
   const [geoFeatures, setGeoFeatures] = useState<Feature[]>([]);
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const [activeLabel, setActiveLabel] = useState<ActiveLabel | null>(null);
   const [keyword, setKeyword] = useState<string>("");
   const [tableError, setTableError] = useState<string>("");
   const [mapError, setMapError] = useState<string>("");
@@ -387,10 +529,18 @@ export default function App(): JSX.Element {
 
   const viewBoxRef = useRef<ViewBox>(FULL_VIEWBOX);
   const viewBoxAnimationRef = useRef<number | null>(null);
+  const viewBoxAnimationResolveRef = useRef<(() => void) | null>(null);
+  const activeLabelRef = useRef<ActiveLabel | null>(null);
+  const labelExitTimerRef = useRef<number | null>(null);
+  const transitionRunRef = useRef(0);
 
   useEffect(() => {
     viewBoxRef.current = viewBox;
   }, [viewBox]);
+
+  useEffect(() => {
+    activeLabelRef.current = activeLabel;
+  }, [activeLabel]);
 
   useEffect(() => {
     let active = true;
@@ -434,23 +584,26 @@ export default function App(): JSX.Element {
     return () => {
       if (viewBoxAnimationRef.current !== null) {
         cancelAnimationFrame(viewBoxAnimationRef.current);
+        viewBoxAnimationRef.current = null;
+      }
+      if (viewBoxAnimationResolveRef.current) {
+        viewBoxAnimationResolveRef.current();
+        viewBoxAnimationResolveRef.current = null;
+      }
+      if (labelExitTimerRef.current !== null) {
+        window.clearTimeout(labelExitTimerRef.current);
+        labelExitTimerRef.current = null;
       }
     };
   }, []);
 
   const { paths, countryBounds } = useMemo(() => buildMapPaths(geoFeatures), [geoFeatures]);
 
-  const countryOptions = useMemo(() => {
-    return countries
-      .map((item) => item.country)
-      .sort((a, b) => a.localeCompare(b, "ja"));
-  }, [countries]);
-
   useEffect(() => {
-    if (selectedCountry !== "all" && !countryOptions.includes(selectedCountry)) {
+    if (selectedCountry !== "all" && !countries.some((item) => item.country === selectedCountry)) {
       setSelectedCountry("all");
     }
-  }, [countryOptions, selectedCountry]);
+  }, [countries, selectedCountry]);
 
   const filteredRows = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
@@ -470,62 +623,136 @@ export default function App(): JSX.Element {
     });
   }, [countries, keyword, selectedCountry]);
 
-  const animateViewBox = useCallback((target: ViewBox, durationMs = ZOOM_ANIMATION_MS) => {
-    if (boxesAlmostEqual(viewBoxRef.current, target)) {
-      viewBoxRef.current = target;
-      setViewBox(target);
-      return;
-    }
+  const animateViewBox = useCallback((target: ViewBox, durationMs = ZOOM_ANIMATION_MS): Promise<void> => {
+    return new Promise((resolve) => {
+      if (boxesAlmostEqual(viewBoxRef.current, target)) {
+        viewBoxRef.current = target;
+        setViewBox(target);
+        resolve();
+        return;
+      }
 
-    if (viewBoxAnimationRef.current !== null) {
-      cancelAnimationFrame(viewBoxAnimationRef.current);
-      viewBoxAnimationRef.current = null;
-    }
+      if (viewBoxAnimationRef.current !== null) {
+        cancelAnimationFrame(viewBoxAnimationRef.current);
+        viewBoxAnimationRef.current = null;
+      }
+      if (viewBoxAnimationResolveRef.current) {
+        viewBoxAnimationResolveRef.current();
+        viewBoxAnimationResolveRef.current = null;
+      }
 
-    const startAt = performance.now();
-    const from = { ...viewBoxRef.current };
-    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      viewBoxAnimationResolveRef.current = resolve;
 
-    const step = (now: number) => {
-      const t = Math.min(1, (now - startAt) / durationMs);
-      const e = easeOutCubic(t);
+      const startAt = performance.now();
+      const from = { ...viewBoxRef.current };
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-      const next: ViewBox = {
-        x: from.x + (target.x - from.x) * e,
-        y: from.y + (target.y - from.y) * e,
-        width: from.width + (target.width - from.width) * e,
-        height: from.height + (target.height - from.height) * e,
-      };
+      const step = (now: number) => {
+        const t = Math.min(1, (now - startAt) / durationMs);
+        const e = easeOutCubic(t);
 
-      viewBoxRef.current = next;
-      setViewBox(next);
+        const next: ViewBox = {
+          x: from.x + (target.x - from.x) * e,
+          y: from.y + (target.y - from.y) * e,
+          width: from.width + (target.width - from.width) * e,
+          height: from.height + (target.height - from.height) * e,
+        };
 
-      if (t < 1) {
-        viewBoxAnimationRef.current = requestAnimationFrame(step);
-      } else {
+        viewBoxRef.current = next;
+        setViewBox(next);
+
+        if (t < 1) {
+          viewBoxAnimationRef.current = requestAnimationFrame(step);
+          return;
+        }
+
         viewBoxRef.current = target;
         setViewBox(target);
         viewBoxAnimationRef.current = null;
-      }
-    };
 
-    viewBoxAnimationRef.current = requestAnimationFrame(step);
+        if (viewBoxAnimationResolveRef.current) {
+          const done = viewBoxAnimationResolveRef.current;
+          viewBoxAnimationResolveRef.current = null;
+          done();
+        } else {
+          resolve();
+        }
+      };
+
+      viewBoxAnimationRef.current = requestAnimationFrame(step);
+    });
+  }, []);
+
+  const hideEditorialLabel = useCallback((runId: number): Promise<void> => {
+    return new Promise((resolve) => {
+      const currentLabel = activeLabelRef.current;
+      if (!currentLabel) {
+        resolve();
+        return;
+      }
+
+      setActiveLabel({ countryName: currentLabel.countryName, phase: "exiting" });
+
+      if (labelExitTimerRef.current !== null) {
+        window.clearTimeout(labelExitTimerRef.current);
+      }
+      labelExitTimerRef.current = window.setTimeout(() => {
+        if (runId !== transitionRunRef.current) {
+          resolve();
+          return;
+        }
+        setActiveLabel(null);
+        labelExitTimerRef.current = null;
+        resolve();
+      }, LABEL_EXIT_TOTAL_MS);
+    });
+  }, []);
+
+  const showEditorialLabel = useCallback((countryName: string, runId: number) => {
+    setActiveLabel({ countryName, phase: "entering" });
+    requestAnimationFrame(() => {
+      if (runId !== transitionRunRef.current) {
+        return;
+      }
+      setActiveLabel((prev) => (prev && prev.countryName === countryName ? { countryName, phase: "visible" } : prev));
+    });
   }, []);
 
   useEffect(() => {
-    if (selectedCountry === "all") {
-      animateViewBox(FULL_VIEWBOX);
-      return;
-    }
+    const runId = transitionRunRef.current + 1;
+    transitionRunRef.current = runId;
 
-    const bounds = countryBounds.get(selectedCountry);
-    if (!bounds) {
-      animateViewBox(FULL_VIEWBOX);
-      return;
-    }
+    const execute = async () => {
+      if (labelExitTimerRef.current !== null) {
+        window.clearTimeout(labelExitTimerRef.current);
+        labelExitTimerRef.current = null;
+      }
+      await hideEditorialLabel(runId);
+      if (runId !== transitionRunRef.current) {
+        return;
+      }
 
-    animateViewBox(viewBoxForCountry(bounds));
-  }, [animateViewBox, countryBounds, selectedCountry]);
+      if (selectedCountry === "all") {
+        await animateViewBox(FULL_VIEWBOX);
+        return;
+      }
+
+      const bounds = countryBounds.get(selectedCountry);
+      if (!bounds) {
+        await animateViewBox(FULL_VIEWBOX);
+        return;
+      }
+
+      await animateViewBox(viewBoxForCountry(bounds));
+      if (runId !== transitionRunRef.current) {
+        return;
+      }
+
+      showEditorialLabel(selectedCountry, runId);
+    };
+
+    void execute();
+  }, [animateViewBox, countryBounds, hideEditorialLabel, selectedCountry, showEditorialLabel]);
 
   const { contextPaths, aseanPaths } = useMemo(() => {
     const context = paths.filter((path) => !path.isAsean);
@@ -553,6 +780,50 @@ export default function App(): JSX.Element {
     setHoveredCountry(null);
     setSelectedCountry((prev) => (prev === countryName ? "all" : countryName));
   }, []);
+
+  const editorialLabel = useMemo(() => {
+    if (!activeLabel) {
+      return null;
+    }
+
+    const spec = EDITORIAL_LABELS.get(activeLabel.countryName);
+    const bounds = countryBounds.get(activeLabel.countryName);
+    if (!spec || !bounds) {
+      return null;
+    }
+
+    const countryWidth = Math.max(1, bounds.maxX - bounds.minX);
+    const countryHeight = Math.max(1, bounds.maxY - bounds.minY);
+    const isTall = countryHeight > countryWidth * 1.12;
+    const isWide = countryWidth > countryHeight * 1.15;
+
+    let anchorX = (bounds.minX + bounds.maxX) / 2;
+    let anchorY = (bounds.minY + bounds.maxY) / 2 - (isTall ? countryHeight * 0.2 : countryHeight * 0.16);
+
+    if (isWide) {
+      anchorX -= countryWidth * 0.03;
+    }
+
+    anchorX += viewBox.width * spec.nudgeX;
+    anchorY += viewBox.height * spec.nudgeY;
+
+    const left = clamp(((anchorX - viewBox.x) / viewBox.width) * 100, 14, 86);
+    const top = clamp(((anchorY - viewBox.y) / viewBox.height) * 100, 10, 76);
+
+    const style = {
+      left: `${left}%`,
+      top: `${top}%`,
+      "--label-tracking": spec.tracking,
+      "--rule-width": `${spec.ruleWidth}px`,
+      "--rule-offset": `${spec.ruleOffset}px`,
+    } as CSSProperties & Record<string, string>;
+
+    return {
+      ...spec,
+      phase: activeLabel.phase,
+      style,
+    };
+  }, [activeLabel, countryBounds, viewBox]);
 
   useEffect(() => {
     const targets = document.querySelectorAll<HTMLElement>(".fade-in");
@@ -676,20 +947,10 @@ export default function App(): JSX.Element {
       <header id="top" className="hero hero--light fade-in">
         <p className="hero-kicker">ASEAN LOW VOLTAGE BUSINESS PORTAL</p>
         <h1>ASEAN低圧配制事業ポータル</h1>
-        <p className="hero-sub">各国の低圧配制に関する規格・制度・実務情報を横断で整理</p>
-        <div className="hero-cta">
-          <a href="#map-section">
-            詳しく見る <span>&gt;</span>
-          </a>
-          <a href="#table-section">
-            比較表へ <span>&gt;</span>
-          </a>
-        </div>
       </header>
 
       <main>
         <section id="map-section" className="hero hero--gray fade-in">
-          <h2>ASEANマップ</h2>
           <div className="map-stage" aria-label="ASEAN map navigation">
             <svg
               id="asean-map-svg"
@@ -700,23 +961,17 @@ export default function App(): JSX.Element {
             >
               {renderMapBody()}
             </svg>
+            {editorialLabel ? (
+              <div className={`editorial-label phase-${editorialLabel.phase}`} style={editorialLabel.style} aria-hidden="true">
+                <p className="label-headline">{editorialLabel.headline}</p>
+                <span className="label-rule" />
+                <p className="label-official">{editorialLabel.official}</p>
+              </div>
+            ) : null}
           </div>
         </section>
 
-        <section id="controls-section" className="card-grid fade-in" aria-label="search controls">
-          <article className="card card--gray">
-            <h3>国で絞り込み</h3>
-            <p>選択した国のみ比較表に表示</p>
-            <select value={selectedCountry} onChange={(event) => setSelectedCountry(event.target.value)}>
-              <option value="all">すべて</option>
-              {countryOptions.map((countryName) => (
-                <option key={countryName} value={countryName}>
-                  {countryName}
-                </option>
-              ))}
-            </select>
-          </article>
-
+        <section id="controls-section" className="card-grid card-grid--single fade-in" aria-label="search controls">
           <article className="card card--white">
             <h3>キーワード検索</h3>
             <p>規格名・認証名などを入力</p>
