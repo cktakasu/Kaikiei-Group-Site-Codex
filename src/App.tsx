@@ -728,11 +728,13 @@ function buildMapPaths(features: Feature[]): { paths: MapPath[]; countryBounds: 
     return Boolean(iso3 && ISO3_TO_JA.has(iso3));
   });
 
+  // 全ての国を表示（コンテキスト国も含める）
   const focusFeatures = aseanFeatures.length ? aseanFeatures : features;
   const project = createProjector(features, focusFeatures, ASEAN_FOCUS_PADDING);
   const paths: MapPath[] = [];
   const countryBounds = new Map<string, Bounds>();
 
+  // 全ての国をパスに追加
   features.forEach((feature, featureIndex) => {
     const iso3 = feature.properties?.iso3 ?? `F-${featureIndex}`;
     const countryName = ISO3_TO_JA.get(iso3) ?? null;
